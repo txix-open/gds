@@ -4,11 +4,12 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"sync/atomic"
+	"time"
+
 	"github.com/integration-system/gds"
 	"github.com/integration-system/gds/config"
 	"github.com/integration-system/gds/jobs"
-	"sync/atomic"
-	"time"
 )
 
 type testStruct struct {
@@ -82,9 +83,8 @@ func main() {
 		for {
 			select {
 			case <-ticker.C:
-				val := atomic.LoadUint32(&counter)
-				atomic.StoreUint32(&counter, 0)
-				fmt.Printf("\n%d req/sec\n", val)
+				val := atomic.SwapUint32(&counter, 0)
+				fmt.Printf("%d req/sec\n", val)
 			}
 		}
 	}()

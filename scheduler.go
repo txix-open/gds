@@ -2,8 +2,9 @@ package gds
 
 import (
 	"context"
-	"errors"
 	"fmt"
+	"time"
+
 	"github.com/hashicorp/go-multierror"
 	"github.com/integration-system/gds/cluster"
 	"github.com/integration-system/gds/config"
@@ -12,11 +13,6 @@ import (
 	"github.com/integration-system/gds/store"
 	"github.com/integration-system/gds/utils"
 	log "github.com/integration-system/isp-log"
-	"time"
-)
-
-var (
-	ErrJobAlreadyDone = errors.New("job already done")
 )
 
 type Scheduler interface {
@@ -71,19 +67,13 @@ func (s *scheduler) GetJob(key string) (*store.JobInfo, error) {
 }
 
 func (s *scheduler) DeleteJob(key string) error {
-	var (
-		err    error
-		oldJob *store.JobInfo
-	)
+	var err error
 	s.store.VisitReadonlyState(func(state store.ReadonlyState) {
-		oldJob, err = state.GetJob(key)
+		_, err = state.GetJob(key)
 	})
 
 	if err != nil {
 		return err
-	}
-	if oldJob.State == jobs.StateExhausted {
-		return ErrJobAlreadyDone
 	}
 
 	cmd := cluster.PrepareDeleteJobCommand(key)

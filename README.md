@@ -20,13 +20,13 @@ Note that all nodes in cluster must register the same JobExecutors because all n
 
 # Planned
 - [Project TODOs](https://todos.tickgit.com/browse?repo=https://github.com/integration-system/gds)
-- Remove `isp-lib` dependency, pass Raft logger to user API
+- Remove `isp-log` dependency, pass Raft logger to user API
 - Implement new Job types
 - Add sync.Pool to cluster.prepareCommand()
 - Library API improvements
 
 # Development
-Gds uses go modules and Go 1.13
+Gds uses go modules and Go 1.13  
 Checks before commit:
 ```bash
 golangci-lint run

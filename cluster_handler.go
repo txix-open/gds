@@ -1,6 +1,9 @@
 package gds
 
 import (
+	"sync"
+	"time"
+
 	"github.com/integration-system/gds/cluster"
 	"github.com/integration-system/gds/jobs"
 	"github.com/integration-system/gds/provider"
@@ -8,8 +11,6 @@ import (
 	"github.com/integration-system/gds/utils"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/pkg/errors"
-	"sync"
-	"time"
 )
 
 const (
@@ -298,6 +299,7 @@ func (cl *ClusterHandler) assignJobs(keys []string) {
 func (cl *ClusterHandler) handleExecutedJobs(executedJobsCh <-chan cluster.JobExecuted) {
 	for payload := range executedJobsCh {
 		cmd := cluster.PrepareJobExecutedCommand(payload.JobKey, payload.Error, payload.ExecutedTime)
+		// TODO handle errors. retry?
 		_, _ = cl.cluster.SyncApplyHelper(cmd, "JobExecutedCommand")
 	}
 }

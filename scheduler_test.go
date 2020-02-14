@@ -4,14 +4,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/integration-system/gds/config"
-	"github.com/integration-system/gds/jobs"
-	"github.com/integration-system/gds/store"
-	"github.com/stretchr/testify/assert"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/integration-system/gds/config"
+	"github.com/integration-system/gds/jobs"
+	"github.com/integration-system/gds/store"
+	"github.com/stretchr/testify/assert"
 )
 
 type testStruct struct {
@@ -196,23 +197,23 @@ func BenchmarkSchedulerScheduleJob(b *testing.B) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 	a.True(schedulers[0].WaitCluster(ctx))
+	b.StopTimer()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		b.StopTimer()
-
 		jobPayload := testStruct{Name: "name1", Number: i}
 		key := fmt.Sprintf("key-%d", i)
 		job, err := jobs.NewOneTimeJob(jobType, key, time.Now().Add(50*time.Second), jobPayload)
-		a.NoError(err)
+		if err != nil {
+			panic(err)
+		}
 
 		schedulerNumber := i % instancesNumber
-
 		b.StartTimer()
 		err = schedulers[schedulerNumber].ScheduleJob(job)
+		if err != nil {
+			panic(err)
+		}
 		b.StopTimer()
-
-		a.NoError(err)
-		b.StartTimer()
 	}
 }
 
