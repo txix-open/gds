@@ -147,7 +147,7 @@ func (client *Client) SyncApplyHelper(command []byte, commandName string) (inter
 func (client *Client) listenLeaderNotifications() {
 	defer func() {
 		if err := recover(); err != nil {
-			client.logger.Error(fmt.Sprintf("panic: %v", err))
+			client.logger.Error(fmt.Sprintf("panic on listen raft client: %v", err))
 		}
 		close(client.leaderCh)
 	}()

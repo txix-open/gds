@@ -9,7 +9,7 @@ import (
 func (h *SocketEventHandler) applyCommandOnLeader(_ etp.Conn, cmd []byte) []byte {
 	defer func() {
 		if err := recover(); err != nil {
-			h.logger.Error(fmt.Sprintf("panic: %v", err))
+			h.logger.Error(fmt.Sprintf("panic on ws command: %v", err))
 		}
 	}()
 	cmdCopy := make([]byte, len(cmd))

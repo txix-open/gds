@@ -201,7 +201,7 @@ func (cl *ClusterHandler) listenLeaderCh(mainStore *store.Store) {
 func (cl *ClusterHandler) checkPeers(closeCh chan struct{}, visitState func(f func(store.ReadonlyState))) {
 	defer func() {
 		if err := recover(); err != nil {
-			cl.logger.Error(fmt.Sprintf("panic: %v", err))
+			cl.logger.Error(fmt.Sprintf("panic on check peers: %v", err))
 		}
 	}()
 	time.Sleep(200 * time.Millisecond)
@@ -251,7 +251,7 @@ func (cl *ClusterHandler) checkJobs(closeCh chan struct{}, visitState func(f fun
 func (cl *ClusterHandler) backgroundAssigningJobs(closeCh chan struct{}, assignJobsCh chan []string) {
 	defer func() {
 		if err := recover(); err != nil {
-			cl.logger.Error(fmt.Sprintf("panic: %v", err))
+			cl.logger.Error(fmt.Sprintf("panic on assigning jobs: %v", err))
 		}
 	}()
 	jobKeys := make([]string, 0, batchSize)
@@ -313,7 +313,7 @@ func (cl *ClusterHandler) assignJobs(keys []string) {
 func (cl *ClusterHandler) handleExecutedJobs(executedJobsCh <-chan cluster.JobExecuted) {
 	defer func() {
 		if err := recover(); err != nil {
-			cl.logger.Error(fmt.Sprintf("panic: %v", err))
+			cl.logger.Error(fmt.Sprintf("panic on executed jobs: %v", err))
 		}
 	}()
 	for payload := range executedJobsCh {

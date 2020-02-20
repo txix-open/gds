@@ -32,7 +32,7 @@ func (s *Store) Apply(l *raft.Log) interface{} {
 	defer func() {
 		s.lock.Unlock()
 		if r := recover(); r != nil {
-			s.logger.Error(fmt.Sprintf("panic: %v", r))
+			s.logger.Error(fmt.Sprintf("panic on raft store: %v", r))
 		}
 	}()
 

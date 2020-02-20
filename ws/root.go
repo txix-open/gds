@@ -29,7 +29,7 @@ func (h *SocketEventHandler) SubscribeAll() {
 func (h *SocketEventHandler) handleConnect(conn etp.Conn) {
 	defer func() {
 		if err := recover(); err != nil {
-			h.logger.Error(fmt.Sprintf("panic: %v", err))
+			h.logger.Error(fmt.Sprintf("panic on ws connect: %v", err))
 		}
 	}()
 	peerID := GetPeerID(conn)
@@ -47,7 +47,7 @@ func (h *SocketEventHandler) handleConnect(conn etp.Conn) {
 func (h *SocketEventHandler) handleDisconnect(conn etp.Conn, _ error) {
 	defer func() {
 		if err := recover(); err != nil {
-			h.logger.Error(fmt.Sprintf("panic: %v", err))
+			h.logger.Error(fmt.Sprintf("panic on ws disconnect: %v", err))
 		}
 	}()
 	peerID := GetPeerID(conn)
