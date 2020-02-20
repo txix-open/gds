@@ -3,6 +3,7 @@ package gds
 import (
 	"context"
 	"fmt"
+	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-multierror"
 	"github.com/integration-system/gds/cluster"
 	"github.com/integration-system/gds/config"
@@ -11,7 +12,6 @@ import (
 	"github.com/integration-system/gds/store"
 	"github.com/integration-system/gds/ws"
 	"github.com/integration-system/isp-etp-go"
-	log "github.com/integration-system/isp-log"
 	mux "github.com/integration-system/net-mux"
 	"net"
 	"net/http"
@@ -29,11 +29,14 @@ type RaftAdapter struct {
 	HTTPServer *http.Server
 	EtpServer  etp.Server
 	muxer      mux.Mux
+
+	logger hclog.Logger
 }
 
-func NewRaftAdapter(cfg config.ClusterConfiguration, handler store.CommandsHandler, typeProvider provider.TypeProvider) (*RaftAdapter, error) {
+func NewRaftAdapter(cfg config.ClusterConfiguration, handler store.CommandsHandler, typeProvider provider.TypeProvider, logger hclog.Logger) (*RaftAdapter, error) {
 	adapter := &RaftAdapter{
 		Config: cfg,
+		logger: logger,
 	}
 
 	httpListener, raftListener, err := adapter.initMultiplexer(cfg.OuterAddress)
@@ -66,7 +69,7 @@ func (ra *RaftAdapter) initMultiplexer(address string) (net.Listener, net.Listen
 
 	go func() {
 		if err := ra.muxer.Serve(); err != nil {
-			log.Errorf(0, "serve mux: %v", err)
+			ra.logger.Error(fmt.Sprintf("serve mux: %v", err))
 		}
 	}()
 	return httpListener, raftListener, nil
@@ -78,14 +81,14 @@ func (ra *RaftAdapter) initWebsocket(ctx context.Context, listener net.Listener)
 		ConnectionReadLimit: defaultWsConnectionReadLimit,
 	}
 	etpServer := etp.NewServer(ctx, etpConfig)
-	ws.NewSocketEventHandler(etpServer, ra.ClusterClient).SubscribeAll()
+	ws.NewSocketEventHandler(etpServer, ra.ClusterClient, ra.logger).SubscribeAll()
 
 	httpMux := http.NewServeMux()
 	httpMux.HandleFunc(cluster.WebsocketURLPath, etpServer.ServeHttp)
 	httpServer := &http.Server{Handler: httpMux}
 	go func() {
 		if err := httpServer.Serve(listener); err != nil && err != http.ErrServerClosed {
-			log.Errorf(0, "http server closed: %v", err)
+			ra.logger.Error(fmt.Sprintf("http server closed: %v", err))
 		}
 	}()
 	ra.EtpServer = etpServer
@@ -95,11 +98,11 @@ func (ra *RaftAdapter) initWebsocket(ctx context.Context, listener net.Listener)
 func (ra *RaftAdapter) initRaft(listener net.Listener, clusterCfg config.ClusterConfiguration,
 	commandsHandler store.CommandsHandler, typeProvider provider.TypeProvider) error {
 	raftStore := store.NewStore(commandsHandler, typeProvider)
-	r, err := raft.NewRaft(listener, clusterCfg, raftStore)
+	r, err := raft.NewRaft(listener, clusterCfg, raftStore, ra.logger)
 	if err != nil {
 		return fmt.Errorf("unable to create raft server: %v", err)
 	}
-	clusterClient := cluster.NewRaftClusterClient(r)
+	clusterClient := cluster.NewRaftClusterClient(r, ra.logger)
 
 	if clusterCfg.BootstrapCluster {
 		err = r.BootstrapCluster()

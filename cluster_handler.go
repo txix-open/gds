@@ -1,6 +1,8 @@
 package gds
 
 import (
+	"fmt"
+	"github.com/hashicorp/go-hclog"
 	"sync"
 	"time"
 
@@ -30,6 +32,8 @@ type ClusterHandler struct {
 	nextPeer         *utils.RoundRobinStrings
 	assignJobsChLock sync.RWMutex
 	assignJobsCh     chan []string
+
+	logger hclog.Logger
 }
 
 func (cl *ClusterHandler) HandleAddPeerCommand(state store.WritableState, data []byte) (interface{}, error) {
@@ -195,6 +199,11 @@ func (cl *ClusterHandler) listenLeaderCh(mainStore *store.Store) {
 
 // Used to detect changes in onlinePeers while there was no leader in cluster (e.g. another peer got down).
 func (cl *ClusterHandler) checkPeers(closeCh chan struct{}, visitState func(f func(store.ReadonlyState))) {
+	defer func() {
+		if err := recover(); err != nil {
+			cl.logger.Error(fmt.Sprintf("panic: %v", err))
+		}
+	}()
 	time.Sleep(200 * time.Millisecond)
 
 	var oldServers []string
@@ -240,6 +249,11 @@ func (cl *ClusterHandler) checkJobs(closeCh chan struct{}, visitState func(f fun
 }
 
 func (cl *ClusterHandler) backgroundAssigningJobs(closeCh chan struct{}, assignJobsCh chan []string) {
+	defer func() {
+		if err := recover(); err != nil {
+			cl.logger.Error(fmt.Sprintf("panic: %v", err))
+		}
+	}()
 	jobKeys := make([]string, 0, batchSize)
 	ticker := time.NewTicker(assigningInterval)
 	defer ticker.Stop()
@@ -297,6 +311,11 @@ func (cl *ClusterHandler) assignJobs(keys []string) {
 }
 
 func (cl *ClusterHandler) handleExecutedJobs(executedJobsCh <-chan cluster.JobExecuted) {
+	defer func() {
+		if err := recover(); err != nil {
+			cl.logger.Error(fmt.Sprintf("panic: %v", err))
+		}
+	}()
 	for payload := range executedJobsCh {
 		cmd := cluster.PrepareJobExecutedCommand(payload.JobKey, payload.Error, payload.ExecutedTime)
 		// TODO handle errors. retry?
@@ -304,10 +323,11 @@ func (cl *ClusterHandler) handleExecutedJobs(executedJobsCh <-chan cluster.JobEx
 	}
 }
 
-func NewClusterHandler(typeProvider provider.TypeProvider, executor executor) *ClusterHandler {
+func NewClusterHandler(typeProvider provider.TypeProvider, executor executor, logger hclog.Logger) *ClusterHandler {
 	return &ClusterHandler{
 		typeProvider: typeProvider,
 		executor:     executor,
 		nextPeer:     utils.NewRoundRobinStrings(make([]string, 0)),
+		logger:       logger,
 	}
 }

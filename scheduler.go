@@ -3,6 +3,7 @@ package gds
 import (
 	"context"
 	"fmt"
+	"github.com/hashicorp/go-hclog"
 	"time"
 
 	"github.com/hashicorp/go-multierror"
@@ -12,7 +13,6 @@ import (
 	"github.com/integration-system/gds/provider"
 	"github.com/integration-system/gds/store"
 	"github.com/integration-system/gds/utils"
-	log "github.com/integration-system/isp-log"
 )
 
 type Scheduler interface {
@@ -128,18 +128,22 @@ func (s *scheduler) Shutdown(ctx context.Context) error {
 }
 
 func NewScheduler(config config.ClusterConfiguration) (Scheduler, error) {
-	// TODO remove
-	_ = log.SetLevel("fatal")
-	//_ = log.SetLevel("debug")
+	var logger hclog.Logger
+	if config.Logger != nil {
+		logger = config.Logger
+	} else {
+		logger = hclog.Default()
+		logger.Named("gds")
+	}
 	executedJobsCh := make(chan cluster.JobExecuted, 100)
 
 	typeProvider := provider.NewTypeProvider()
 	executorRegistry := newDefaultExecutorRegistry()
-	executor := newDefaultRuntimeExecutor(executorRegistry, executedJobsCh, config.JobExecutionTimeout)
+	executor := newDefaultRuntimeExecutor(executorRegistry, executedJobsCh, config.JobExecutionTimeout, logger)
 
-	clusterHandler := NewClusterHandler(typeProvider, executor)
+	clusterHandler := NewClusterHandler(typeProvider, executor, logger)
 
-	raftAdapter, err := NewRaftAdapter(config, clusterHandler, typeProvider)
+	raftAdapter, err := NewRaftAdapter(config, clusterHandler, typeProvider, logger)
 	if err != nil {
 		return nil, err
 	}

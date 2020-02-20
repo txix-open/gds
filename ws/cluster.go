@@ -1,12 +1,17 @@
 package ws
 
 import (
+	"fmt"
 	"github.com/integration-system/gds/cluster"
 	etp "github.com/integration-system/isp-etp-go"
-	log "github.com/integration-system/isp-log"
 )
 
 func (h *SocketEventHandler) applyCommandOnLeader(_ etp.Conn, cmd []byte) []byte {
+	defer func() {
+		if err := recover(); err != nil {
+			h.logger.Error(fmt.Sprintf("panic: %v", err))
+		}
+	}()
 	cmdCopy := make([]byte, len(cmd))
 	copy(cmdCopy, cmd)
 	obj, err := h.clusterClient.SyncApplyOnLeader(cmdCopy)
@@ -15,13 +20,13 @@ func (h *SocketEventHandler) applyCommandOnLeader(_ etp.Conn, cmd []byte) []byte
 		logResponse.ApplyError = err.Error()
 		data, err := json.Marshal(obj)
 		if err != nil {
-			log.Fatalf(0, "marshaling ApplyLogResponse: %v", err)
+			panic(fmt.Errorf("marshaling ApplyLogResponse: %v", err))
 		}
 		return data
 	}
 	data, err := json.Marshal(obj)
 	if err != nil {
-		log.Fatalf(0, "marshaling ApplyLogResponse: %v", err)
+		panic(fmt.Errorf("marshaling ApplyLogResponse: %v", err))
 	}
 	return data
 }

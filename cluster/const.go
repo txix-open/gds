@@ -3,7 +3,7 @@ package cluster
 import (
 	"bytes"
 	"encoding/binary"
-	log "github.com/integration-system/isp-log"
+	"fmt"
 	"time"
 )
 
@@ -69,7 +69,7 @@ func prepareCommand(command uint64, payload interface{}) []byte {
 	buf := bytes.NewBuffer(cmd)
 	err := json.NewEncoder(buf).Encode(payload)
 	if err != nil {
-		log.Fatalf(0, "prepare log command: %v", err)
+		panic(fmt.Errorf("prepare log command: %v", err))
 	}
 	return buf.Bytes()
 }

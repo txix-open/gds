@@ -1,6 +1,7 @@
 package config
 
 import (
+	"github.com/hashicorp/go-hclog"
 	"time"
 )
 
@@ -17,4 +18,6 @@ type ClusterConfiguration struct {
 	OuterAddress string
 	// Addresses of peers in cluster including OuterAddress in format address:port
 	Peers []string
+	// Logger is a user-provided hc-log logger. If nil, a logger writing to Stderr
+	Logger hclog.Logger
 }

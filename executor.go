@@ -4,10 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/hashicorp/go-hclog"
 	"github.com/integration-system/gds/cluster"
 	"github.com/integration-system/gds/jobs"
 	"github.com/integration-system/gds/utils"
-	log "github.com/integration-system/isp-log"
 	"sync"
 	"time"
 )
@@ -33,6 +33,8 @@ type defaultRuntimeExecutor struct {
 	fMap             map[string]*future
 	executedJobsCh   chan<- cluster.JobExecuted
 	executionTimeout time.Duration
+
+	logger hclog.Logger
 }
 
 func (e *defaultRuntimeExecutor) CancelJob(key string) bool {
@@ -124,7 +126,7 @@ func (e *defaultRuntimeExecutor) makeF(f *future) func() {
 
 		exec, ok := e.registry.GetExecutor(f.job.Type())
 		if !ok {
-			log.Errorf(0, "defaultRuntimeExecutor: not found executor for job type: %v", f.job.Type())
+			e.logger.Error(fmt.Sprintf("defaultRuntimeExecutor: not found executor for job type: %v", f.job.Type()))
 			return
 		}
 
@@ -156,7 +158,7 @@ func (e *defaultRuntimeExecutor) makeF(f *future) func() {
 		if err != nil {
 			errStr = err.Error()
 			// TODO remove log
-			log.Warnf(0, "defaultRuntimeExecutor: job %s type %s has finished with err '%v'", f.job.Key(), f.job.Type(), err)
+			e.logger.Warn(fmt.Sprintf("defaultRuntimeExecutor: job %s type %s has finished with err '%v'", f.job.Key(), f.job.Type(), err))
 		}
 
 		executedJob := cluster.JobExecuted{
@@ -169,7 +171,7 @@ func (e *defaultRuntimeExecutor) makeF(f *future) func() {
 	}
 }
 
-func newDefaultRuntimeExecutor(registry executorRegistry, executedJobsCh chan<- cluster.JobExecuted, executionTimeout time.Duration) executor {
+func newDefaultRuntimeExecutor(registry executorRegistry, executedJobsCh chan<- cluster.JobExecuted, executionTimeout time.Duration, logger hclog.Logger) executor {
 	if executionTimeout == 0 {
 		executionTimeout = DefaultJobExecutionTimeout
 	}
@@ -178,5 +180,6 @@ func newDefaultRuntimeExecutor(registry executorRegistry, executedJobsCh chan<- 
 		fMap:             make(map[string]*future),
 		executedJobsCh:   executedJobsCh,
 		executionTimeout: executionTimeout,
+		logger:           logger,
 	}
 }

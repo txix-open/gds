@@ -1,6 +1,7 @@
 package raft
 
 import (
+	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/raft"
 	raftboltdb "github.com/hashicorp/raft-boltdb"
 	"github.com/integration-system/gds/config"
@@ -104,13 +105,15 @@ func (r *Raft) listenLeader() {
 	}
 }
 
-func NewRaft(tcpListener net.Listener, configuration config.ClusterConfiguration, state raft.FSM) (*Raft, error) {
+func NewRaft(tcpListener net.Listener, configuration config.ClusterConfiguration, state raft.FSM, logger hclog.Logger) (*Raft, error) {
 	logStore, store, snapshotStore, err := makeStores(configuration)
 	if err != nil {
 		return nil, err
 	}
 
-	netLogger := &LoggerAdapter{name: "RAFT-NET"}
+	raftNetLogger, raftLogger := &logger, &logger
+	netLogger := *raftNetLogger
+	netLogger.Named("RAFT-NET")
 	streamLayer := &StreamLayer{Listener: tcpListener}
 	config := &raft.NetworkTransportConfig{
 		Stream:                streamLayer,
@@ -122,7 +125,8 @@ func NewRaft(tcpListener net.Listener, configuration config.ClusterConfiguration
 	trans := raft.NewNetworkTransportWithConfig(config)
 
 	cfg := raft.DefaultConfig()
-	cfg.Logger = &LoggerAdapter{name: "RAFT"}
+	cfg.Logger = *raftLogger
+	cfg.Logger.Named("RAFT")
 	cfg.LocalID = raft.ServerID(configuration.OuterAddress)
 	r, err := raft.NewRaft(cfg, state, logStore, store, snapshotStore, trans)
 	if err != nil {

@@ -4,10 +4,10 @@ import (
 	"encoding/binary"
 	json2 "encoding/json"
 	"fmt"
+	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/raft"
 	"github.com/integration-system/gds/cluster"
 	"github.com/integration-system/gds/provider"
-	log "github.com/integration-system/isp-log"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/pkg/errors"
 	"io"
@@ -23,17 +23,23 @@ type Store struct {
 	lock         sync.RWMutex
 	handlers     map[uint64]func(WritableState, []byte) (interface{}, error)
 	typeProvider provider.TypeProvider
+
+	logger hclog.Logger
 }
 
 func (s *Store) Apply(l *raft.Log) interface{} {
 	s.lock.Lock()
-	defer s.lock.Unlock()
+	defer func() {
+		s.lock.Unlock()
+		if r := recover(); r != nil {
+			s.logger.Error(fmt.Sprintf("panic: %v", r))
+		}
+	}()
 
 	if len(l.Data) < 8 {
-		log.Errorf(0, "invalid log data command: %s", l.Data)
+		s.logger.Error(fmt.Sprintf("invalid log data command: %s", l.Data))
 	}
 	command := binary.BigEndian.Uint64(l.Data[:8])
-	//log.Debugf(0, "Apply %d command. Data: %s", command, l.Data[8:])
 
 	var (
 		result interface{}
@@ -43,10 +49,10 @@ func (s *Store) Apply(l *raft.Log) interface{} {
 		result, err = handler(s.state, l.Data[8:])
 	} else {
 		err = fmt.Errorf("unknown log command %d", command)
-		log.WithMetadata(map[string]interface{}{
-			"command": command,
-			"body":    string(l.Data),
-		}).Error(0, "unknown log command")
+		s.logger.Error("unknown log command",
+			"command", command,
+			"body", string(l.Data),
+		)
 	}
 
 	bytes, e := json.Marshal(result)
