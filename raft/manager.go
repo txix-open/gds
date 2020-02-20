@@ -111,9 +111,7 @@ func NewRaft(tcpListener net.Listener, configuration config.ClusterConfiguration
 		return nil, err
 	}
 
-	raftNetLogger, raftLogger := &logger, &logger
-	netLogger := *raftNetLogger
-	netLogger.Named("RAFT-NET")
+	netLogger := logger.Named("RAFT-NET")
 	streamLayer := &StreamLayer{Listener: tcpListener}
 	config := &raft.NetworkTransportConfig{
 		Stream:                streamLayer,
@@ -125,8 +123,7 @@ func NewRaft(tcpListener net.Listener, configuration config.ClusterConfiguration
 	trans := raft.NewNetworkTransportWithConfig(config)
 
 	cfg := raft.DefaultConfig()
-	cfg.Logger = *raftLogger
-	cfg.Logger.Named("RAFT")
+	cfg.Logger = logger.Named("RAFT")
 	cfg.LocalID = raft.ServerID(configuration.OuterAddress)
 	r, err := raft.NewRaft(cfg, state, logStore, store, snapshotStore, trans)
 	if err != nil {
