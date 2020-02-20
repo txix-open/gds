@@ -132,8 +132,7 @@ func NewScheduler(config config.ClusterConfiguration) (Scheduler, error) {
 	if config.Logger != nil {
 		logger = config.Logger
 	} else {
-		logger = hclog.Default()
-		logger.Named("gds")
+		logger = hclog.Default().Named("gds")
 	}
 	executedJobsCh := make(chan cluster.JobExecuted, 100)
 
