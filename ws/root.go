@@ -1,9 +1,10 @@
 package ws
 
 import (
+	"fmt"
+	"github.com/hashicorp/go-hclog"
 	"github.com/integration-system/gds/cluster"
 	etp "github.com/integration-system/isp-etp-go"
-	log "github.com/integration-system/isp-log"
 	jsoniter "github.com/json-iterator/go"
 )
 
@@ -14,6 +15,7 @@ var (
 type SocketEventHandler struct {
 	server        etp.Server
 	clusterClient *cluster.Client
+	logger        hclog.Logger
 }
 
 func (h *SocketEventHandler) SubscribeAll() {
@@ -25,6 +27,11 @@ func (h *SocketEventHandler) SubscribeAll() {
 }
 
 func (h *SocketEventHandler) handleConnect(conn etp.Conn) {
+	defer func() {
+		if err := recover(); err != nil {
+			h.logger.Error(fmt.Sprintf("panic on ws connect: %v", err))
+		}
+	}()
 	peerID := GetPeerID(conn)
 	if peerID == "" {
 		return
@@ -38,6 +45,11 @@ func (h *SocketEventHandler) handleConnect(conn etp.Conn) {
 }
 
 func (h *SocketEventHandler) handleDisconnect(conn etp.Conn, _ error) {
+	defer func() {
+		if err := recover(); err != nil {
+			h.logger.Error(fmt.Sprintf("panic on ws disconnect: %v", err))
+		}
+	}()
 	peerID := GetPeerID(conn)
 	if peerID == "" {
 		return
@@ -51,12 +63,13 @@ func (h *SocketEventHandler) handleDisconnect(conn etp.Conn, _ error) {
 }
 
 func (h *SocketEventHandler) handleError(_ etp.Conn, err error) {
-	log.Debugf(0, "isp-etp: %v", err)
+	h.logger.Debug(fmt.Sprintf("isp-etp: %v", err))
 }
 
-func NewSocketEventHandler(server etp.Server, client *cluster.Client) *SocketEventHandler {
+func NewSocketEventHandler(server etp.Server, client *cluster.Client, logger hclog.Logger) *SocketEventHandler {
 	return &SocketEventHandler{
 		server:        server,
 		clusterClient: client,
+		logger:        logger,
 	}
 }

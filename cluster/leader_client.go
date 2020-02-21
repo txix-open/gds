@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 	"github.com/cenkalti/backoff"
+	"github.com/hashicorp/go-hclog"
 	etp "github.com/integration-system/isp-etp-go/client"
-	log "github.com/integration-system/isp-log"
 	"net"
 	"net/http"
 	"net/url"
@@ -17,6 +17,8 @@ type SocketLeaderClient struct {
 	url       string
 	globalCtx context.Context
 	cancel    context.CancelFunc
+
+	logger hclog.Logger
 }
 
 func (c *SocketLeaderClient) Ack(data []byte, timeout time.Duration) ([]byte, error) {
@@ -40,18 +42,19 @@ func (c *SocketLeaderClient) Close() {
 	c.cancel()
 	err := c.client.Close()
 	if err != nil {
-		log.Warnf(0, "leader client close err: %v", err)
+		c.logger.Warn(fmt.Sprintf("leader client close err: %v", err))
 	}
-	log.Debug(0, "leader client connection closed")
+	c.logger.Debug(fmt.Sprintf("leader client connection closed"))
 }
 
-func NewSocketLeaderClient(leaderAddr, localID string) *SocketLeaderClient {
+func NewSocketLeaderClient(leaderAddr, localID string, logger hclog.Logger) *SocketLeaderClient {
 	etpConfig := etp.Config{
 		HttpClient: http.DefaultClient,
 	}
 	client := etp.NewClient(etpConfig)
 	leaderClient := &SocketLeaderClient{
 		client: client,
+		logger: logger,
 		url:    getURL(leaderAddr, localID),
 	}
 	ctx, cancel := context.WithCancel(context.Background())
@@ -59,16 +62,16 @@ func NewSocketLeaderClient(leaderAddr, localID string) *SocketLeaderClient {
 	leaderClient.cancel = cancel
 
 	leaderClient.client.OnDisconnect(func(err error) {
-		log.WithMetadata(map[string]interface{}{
-			"leaderAddr": leaderAddr,
-		}).Warn(0, "leader client disconnected")
+		logger.Warn("leader client disconnected",
+			"leaderAddr", leaderAddr,
+		)
 	})
 
 	leaderClient.client.OnError(func(err error) {
-		log.Warnf(0, "leader client on error: %v", err)
+		logger.Warn(fmt.Sprintf("leader client on error: %v", err))
 	})
 	leaderClient.client.OnConnect(func() {
-		log.Debug(0, "leader client connected")
+		logger.Debug(fmt.Sprintf("leader client connected"))
 	})
 	return leaderClient
 }

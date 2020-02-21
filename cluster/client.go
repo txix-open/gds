@@ -2,9 +2,10 @@ package cluster
 
 import (
 	"errors"
+	"fmt"
+	"github.com/hashicorp/go-hclog"
 	"github.com/integration-system/gds/raft"
 	"github.com/integration-system/gds/utils"
-	log "github.com/integration-system/isp-log"
 	jsoniter "github.com/json-iterator/go"
 	"sync"
 	"time"
@@ -30,6 +31,8 @@ type Client struct {
 	leaderClient  *SocketLeaderClient
 	prevLeaderIds []string
 	leaderCh      chan bool
+
+	logger hclog.Logger
 }
 
 func (client *Client) Shutdown() error {
@@ -125,31 +128,34 @@ func (client *Client) SyncApplyOnLeader(command []byte) (*ApplyLogResponse, erro
 }
 
 func (client *Client) SyncApplyHelper(command []byte, commandName string) (interface{}, error) {
-	// TODO remove
-	// log.Debugf(0, "peer %s applying %s to cluster: %s", client.LocalID(), commandName, string(command))
 	applyLogResponse, err := client.SyncApply(command)
 	if err != nil {
-		log.Warnf(0, "apply %s: %v", commandName, err)
+		client.logger.Warn(fmt.Sprintf("apply %s: %v", commandName, err))
 		return nil, err
 	}
 	if applyLogResponse != nil && applyLogResponse.ApplyError != "" {
-		log.WithMetadata(map[string]interface{}{
-			"result":      string(applyLogResponse.Result),
-			"applyError":  applyLogResponse.ApplyError,
-			"commandName": commandName,
-		}).Warnf(0, "apply command")
+		client.logger.Warn("apply command",
+			"result", string(applyLogResponse.Result),
+			"applyError", applyLogResponse.ApplyError,
+			"commandName", commandName,
+		)
 		return applyLogResponse.Result, errors.New(applyLogResponse.ApplyError)
 	}
 	return applyLogResponse.Result, nil
 }
 
 func (client *Client) listenLeaderNotifications() {
-	defer close(client.leaderCh)
+	defer func() {
+		if err := recover(); err != nil {
+			client.logger.Error(fmt.Sprintf("panic on listen raft client: %v", err))
+		}
+		close(client.leaderCh)
+	}()
 
 	for n := range client.r.LeaderNotificationsCh() {
 		client.leaderMu.Lock()
 		if client.leaderClient != nil {
-			log.Debugf(0, "close previous leader ws connection %s", client.leaderState.leaderAddr)
+			client.logger.Debug(fmt.Sprintf("close previous leader ws connection %s", client.leaderState.leaderAddr))
 			client.leaderClient.Close()
 			client.leaderClient = nil
 		}
@@ -179,9 +185,9 @@ func (client *Client) listenLeaderNotifications() {
 					_, _ = client.SyncApplyHelper(cmd, "AddPeerCommand")
 				}(client.prevLeaderIds)
 			} else {
-				leaderClient := NewSocketLeaderClient(n.CurrentLeaderAddress, client.r.LocalID())
+				leaderClient := NewSocketLeaderClient(n.CurrentLeaderAddress, client.r.LocalID(), client.logger)
 				if err := leaderClient.Dial(leaderConnectionTimeout); err != nil {
-					log.Errorf(0, "could not connect to leader: %v", err)
+					client.logger.Error(fmt.Sprintf("could not connect to leader: %v", err))
 					continue
 				}
 				client.leaderClient = leaderClient
@@ -206,11 +212,12 @@ type leaderState struct {
 	leaderAddr    string
 }
 
-func NewRaftClusterClient(r *raft.Raft) *Client {
+func NewRaftClusterClient(r *raft.Raft, logger hclog.Logger) *Client {
 	client := &Client{
 		r:           r,
 		leaderState: leaderState{},
 		leaderCh:    make(chan bool, 5),
+		logger:      logger,
 	}
 	go client.listenLeaderNotifications()
 

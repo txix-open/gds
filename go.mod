@@ -12,14 +12,11 @@ require (
 	github.com/hashicorp/raft v1.1.2-0.20191121160549-9ecdba6a067b
 	github.com/hashicorp/raft-boltdb v0.0.0-20191021154308-4207f1bf0617
 	github.com/integration-system/isp-etp-go v2.0.2+incompatible
-	github.com/integration-system/isp-log v0.0.0-20191010105142-a22bf2e0b56a
 	github.com/integration-system/net-mux v1.0.0
 	github.com/json-iterator/go v1.1.8
 	github.com/mattn/go-isatty v0.0.11 // indirect
 	github.com/pkg/errors v0.8.1
 	github.com/robfig/cron/v3 v3.0.0
-	github.com/sirupsen/logrus v1.4.2
-	github.com/spf13/cast v1.3.1
 	github.com/stretchr/testify v1.4.0
 	golang.org/x/sys v0.0.0-20191224085550-c709ea063b76 // indirect
 	gopkg.in/yaml.v2 v2.2.4 // indirect
