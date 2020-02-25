@@ -1,4 +1,8 @@
 # Gds
+[![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/integration-system/gds?color=6b9ded&sort=semver)](https://github.com/integration-system/gds/releases)
+[![Go API Reference](https://img.shields.io/badge/go-documentation-blue.svg?style=flat)](https://pkg.go.dev/github.com/integration-system/gds?tab=doc)
+[![TODOs](https://badgen.net/https/api.tickgit.com/badgen/github.com/integration-system/gds)](https://www.tickgit.com/browse?repo=github.com/integration-system/gds)
+
 A Raft-based embedded job scheduler for your Go projects.
 
 # Features
@@ -19,7 +23,6 @@ Job struct fields have to be public in order to marshal/unmarshal correctly or c
 Note that all nodes in cluster must register the same JobExecutors because all nodes store full jobs state. 
 
 # Planned
-- [Project TODOs](https://todos.tickgit.com/browse?repo=https://github.com/integration-system/gds)
 - Implement new Job types
 - Add sync.Pool to cluster.prepareCommand()
 - Library API improvements
